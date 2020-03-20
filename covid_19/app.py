@@ -1,6 +1,7 @@
 import dash
 import dash_html_components as html
 import dash_core_components as dcc
+from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
 import numpy as np
@@ -17,6 +18,9 @@ DEATHS = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/
                   'master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv')
 RECOVERED = pd.read_csv('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/'
                         'master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Recovered.csv')
+
+DAYS = dict(enumerate(list(CONFIRMED.columns)[4:]))
+
 LAST_UPDATE = CONFIRMED.columns[-1]
 
 trace_first = go.Scattergeo(
@@ -122,10 +126,28 @@ charts_row = dbc.Row(
     ]
 )
 
+day_slider = dcc.Slider(
+    id='day-slider',
+    min=0,
+    max=len(DAYS),
+    value=0,
+    marks={
+        k: v for k, v in DAYS.items()
+    }
+)
+
+run_animation_button = dbc.Button(
+    id='run-animation-button',
+    n_clicks=0,
+    children=['Run Animation'],
+    color='primary'
+)
+
 content = dbc.Container(
     children=[
         kpi_row,
-        charts_row
+        day_slider,
+        run_animation_button
     ],
     fluid=True
 )
@@ -133,6 +155,15 @@ content = dbc.Container(
 app.layout = html.Div(
     children=[navbar, content]
 )
+
+
+@app.callback(
+    Output('day-slider', 'value'),
+    [Input('run-animation-button', 'n_clicks')],
+    [State('day-slider', 'value')]
+)
+def update_slider(n_clicks, value):
+    return value + 1
 
 
 if __name__=='__main__':
