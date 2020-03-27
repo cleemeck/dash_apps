@@ -47,15 +47,15 @@ def draw_infection_map(df, day):
     layout = go.Layout(
         margin=dict(l=0, r=0, t=0, b=0),
         geo=dict(
-            landcolor='#4E5D6C',
+            landcolor='#abb6c2',
             showocean=True,
-            oceancolor='#4E5D6C',
+            oceancolor='#abb6c2',
             showcountries=True,
             showframe=False,
             framewidth=0,
-            bgcolor='#2B3E50'
+            bgcolor='#abb6c2'
         ),
-        paper_bgcolor='#4E5D6C',
+        paper_bgcolor='#abb6c2',
         transition=dict(
             duration=500,
             easing='cubic-in-out'
