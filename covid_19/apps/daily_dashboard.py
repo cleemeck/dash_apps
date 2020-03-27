@@ -16,11 +16,13 @@ def convert_date(str_date):
 
 
 # loading data
-covid_states = ['Confirmed', 'Deaths', 'Recovered']
+COVID_STATES = ['Confirmed', 'Deaths', 'Recovered']
+COVID_COLORS = ['danger', 'dark', 'success']
+
 
 urls = [f'https://raw.githubusercontent.com/bumbeishvili/'
         f'covid19-daily-data/master/time_series_19-covid-{i}.csv'
-        for i in covid_states]
+        for i in COVID_STATES]
 
 
 CONFIRMED, DEATHS, RECOVERED = [pd.read_csv(url) for url in urls]
@@ -134,26 +136,47 @@ kpi_row = dbc.Row(
     children=[
         render_kpi_card(covid_state, color)
         for covid_state, color
-        in zip(covid_states, ['danger', 'dark', 'success'])
+        in zip(COVID_STATES, COVID_COLORS)
         ]
 )
 
 
-charts_row = dbc.Row(
-    children=[
-        dbc.Col(
+charts_deck = dbc.CardDeck(
             children=[
                 dbc.Card(
                     children=[
-                        dbc.CardHeader(html.Div('Confirmed Map')),
-                        dbc.CardBody(dcc.Graph(id='infection-map', figure=draw_infection_map(CONFIRMED,
-                                                                                             convert_date(DAYS[-7]))))
+                        dbc.CardHeader(
+html.H5('The famous curve', className='card-title')
+                        ),
+                        dbc.CardBody(
+                            children=[
+                                dbc.ButtonGroup(
+                                children=[
+                                    dbc.Button(
+                                        f'{covid_state}',
+                                        id=f'{covid_state}-button', color=color)
+                                    for covid_state, color in zip(COVID_STATES, COVID_COLORS)
+                                ]
+                            ),
+                                dcc.Graph(
+                                id='infection-map',
+                                figure=draw_infection_map(CONFIRMED, convert_date(DAYS[-7]))
+                            )],
+                        )
+                    ]
+                ),
+                dbc.Card(
+                    children=[
+                        dbc.CardHeader(html.H5('The famous curve', className='card-title')),
+                        dbc.CardBody(
+                            children=[
+                                dcc.Graph(
+                                    figure=draw_curve(CONFIRMED, RECOVERED, '2020-03-26'))
+                            ],
+                        )
                     ]
                 )
             ],
-            xl=6,
-            md=6)
-    ]
 )
 
 date_picker = dcc.DatePickerSingle(
@@ -173,10 +196,9 @@ run_animation_button = dbc.Button(
 
 content = dbc.Container(
     children=[
-        kpi_row,
         date_picker,
-        charts_row,
-        dbc.Col([dcc.Graph(figure=draw_curve(CONFIRMED, RECOVERED, '2020-03-26'))], width=6)
+        kpi_row,
+        charts_deck,
     ],
     fluid=True
 )
@@ -196,7 +218,7 @@ def update_map(day):
 
 
 @app.callback(
-    [Output(f'{covid_state}-total', 'children') for covid_state in covid_states],
+    [Output(f'{covid_state}-total', 'children') for covid_state in COVID_STATES],
     [Input('date-picker-single', 'date')]
 )
 def update_total(day):
@@ -206,7 +228,7 @@ def update_total(day):
 
 
 @app.callback(
-    [Output(f'{covid_state}-change', 'children') for covid_state in covid_states],
+    [Output(f'{covid_state}-change', 'children') for covid_state in COVID_STATES],
     [Input('date-picker-single', 'date')]
 )
 def update_change(day):
