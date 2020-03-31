@@ -17,7 +17,7 @@ def convert_date(str_date):
 
 # loading data
 COVID_STATES = ['Confirmed', 'Deaths', 'Recovered']
-COVID_COLORS = ['danger', 'dark', 'success']
+COVID_COLORS = ['warning', 'danger', 'success']
 
 
 urls = [f'https://raw.githubusercontent.com/bumbeishvili/'
@@ -44,7 +44,7 @@ def draw_infection_map(df, day):
         marker=dict(
             size=abs(df[day]/50),
             sizemode='area',
-            color='#D9534F'
+            color='#f0ad4e'
         )
     )
 
@@ -52,15 +52,18 @@ def draw_infection_map(df, day):
     layout = go.Layout(
         margin=dict(l=0, r=0, t=0, b=0),
         geo=dict(
-            landcolor='#abb6c2',
+            projection=dict(type='natural earth'),
+            landcolor='#4E5D6C',
             showocean=True,
-            oceancolor='#abb6c2',
+            oceancolor='#4E5D6C',
             showcountries=True,
+            countrycolor='#868e96',
+            coastlinecolor='#868e96',
             showframe=False,
             framewidth=0,
-            bgcolor='#abb6c2'
+            bgcolor='#4E5D6C'
         ),
-        paper_bgcolor='#abb6c2',
+        paper_bgcolor='#4E5D6C',
         transition=dict(
             duration=500,
             easing='cubic-in-out'
@@ -71,54 +74,86 @@ def draw_infection_map(df, day):
     return fig
 
 
-def draw_curve(df1, df2, day):
+def draw_curve(df1, df2, df3,  day):
     day_idx = list(df1.columns).index(day) + 1
 
-    df1_curve_trace = go.Bar(
+    df1_curve_trace = go.Scatter(
         x=DAYS,
         y=list(np.sum(df1.iloc[:, 4:day_idx].copy(), axis=0)),
+        mode='lines+markers',
         name='Confirmed',
+        marker=dict(
+            color='#f0ad4e')
+    )
+
+    df2_curve_trace = go.Scatter(
+        x=DAYS,
+        y=list(np.sum(df2.iloc[:, 4:day_idx].copy(), axis=0)),
+        mode='lines+markers',
+        name='Deaths',
         marker=dict(
             color='#d9534f')
     )
-    df2_curve_trace = go.Bar(
+
+    df3_curve_trace = go.Bar(
         x=DAYS,
-        y=list(np.sum(df2.iloc[:, 4:day_idx].copy(), axis=0)),
+        y=list(np.sum(df3.iloc[:, 4:day_idx].copy(), axis=0)),
         width=0.4,
         name='Recovered',
         marker=dict(
             color='#5cb85c')
     )
+
     curve_layout = go.Layout(
         margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor='#abb6c2',
-        plot_bgcolor='#abb6c2',
+        paper_bgcolor='#4E5D6C',
+        plot_bgcolor='#4E5D6C',
         barmode='overlay',
         xaxis=dict(
             range=[DAYS[0], DAYS[-1]],
-            fixedrange=True))
-    fig = go.Figure([df1_curve_trace, df2_curve_trace], curve_layout)
+            color='#fff',
+            zeroline=False,
+            title=dict(
+                text='Date'),
+            fixedrange=True),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            color='#fff',
+            title=dict(
+                text='Number of Cases')
+        ),
+        legend=dict(
+            x=0.7,
+            font=dict(
+                color='#fff'
+            )))
+    fig = go.Figure([df1_curve_trace, df2_curve_trace, df3_curve_trace], curve_layout)
     return fig
 
 
 def render_kpi_card(covid_state, color):
     kpi_card = dbc.Col(dbc.Card(
         children=[
-            dbc.CardHeader(html.H4(covid_state), className='text-center'),
+            dbc.CardHeader(html.H4(covid_state), style={'font-size': '1.1vw', 'text-align': 'center'}),
             dbc.CardBody(
                 children=[
                     dbc.Row(
                         children=[
                             dbc.Col(
                                 children=[
-                                    html.Div('Total', className='text-center'),
-                                    html.Div(id=f'{covid_state}-total', className='display-4 text-center')
+                                    html.Div('Total',
+                                             style={'font-size': '1vw', 'text-align': 'center'}),
+                                    html.Div(id=f'{covid_state}-total',
+                                             style={'font-size': '2.5vw', 'text-align': 'center'})
                                 ]
                             ),
                             dbc.Col(
                                 children=[
-                                    html.Div('Daily Change', className='text-center'),
-                                    html.Div(id=f'{covid_state}-change', className='display-4 text-center')
+                                    html.Div('Daily Change',
+                                             style={'font-size': '1vw', 'text-align': 'center'}),
+                                    html.Div(id=f'{covid_state}-change',
+                                             style={'font-size': '2.5vw', 'text-align': 'center'})
                                 ]
                             )
                         ]
@@ -137,7 +172,8 @@ kpi_row = dbc.Row(
         render_kpi_card(covid_state, color)
         for covid_state, color
         in zip(COVID_STATES, COVID_COLORS)
-        ]
+        ],
+    className='mb-4'
 )
 
 
@@ -146,18 +182,10 @@ charts_deck = dbc.CardDeck(
                 dbc.Card(
                     children=[
                         dbc.CardHeader(
-html.H5('The famous curve', className='card-title')
+                            html.H5('Confirmed Cases', className='card-title')
                         ),
                         dbc.CardBody(
                             children=[
-                                dbc.ButtonGroup(
-                                children=[
-                                    dbc.Button(
-                                        f'{covid_state}',
-                                        id=f'{covid_state}-button', color=color)
-                                    for covid_state, color in zip(COVID_STATES, COVID_COLORS)
-                                ]
-                            ),
                                 dcc.Graph(
                                 id='infection-map',
                                 figure=draw_infection_map(CONFIRMED, convert_date(DAYS[-7]))
@@ -171,7 +199,7 @@ html.H5('The famous curve', className='card-title')
                         dbc.CardBody(
                             children=[
                                 dcc.Graph(
-                                    figure=draw_curve(CONFIRMED, RECOVERED, '2020-03-26'))
+                                    figure=draw_curve(CONFIRMED, DEATHS, RECOVERED, '2020-03-30'))
                             ],
                         )
                     ]
@@ -223,7 +251,7 @@ def update_map(day):
 )
 def update_total(day):
     date_only = day.split('T')[0]
-    return ['{:,.0f}'.format(np.sum(df[date_only])).replace(',', ' ')
+    return ['{:,.0f}'.format(np.sum(df[date_only]))
             for df in ALL_DFS]
 
 
@@ -236,4 +264,4 @@ def update_change(day):
     selected_idx = [list(df.columns).index(date_only) for df in ALL_DFS]
     results = [np.sum(df.iloc[:, idx]) - np.sum(df.iloc[:, idx-1])
                for df, idx in zip(ALL_DFS, selected_idx)]
-    return ['{:+,.0f}'.format(result).replace(',', ' ') for result in results]
+    return ['{:+,.0f}'.format(result) for result in results]
