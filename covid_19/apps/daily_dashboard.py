@@ -1,3 +1,4 @@
+import dash
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
@@ -79,7 +80,7 @@ def draw_curve(df1, df2, df3,  day):
     day_idx = list(df1.columns).index(day) + 1
 
     df1_curve_trace = go.Scatter(
-        x=DAYS,
+        x=list(df1.columns)[4:],
         y=list(np.sum(df1.iloc[:, 4:day_idx].copy(), axis=0)),
         mode='lines+markers',
         name='Confirmed',
@@ -88,7 +89,7 @@ def draw_curve(df1, df2, df3,  day):
     )
 
     df2_curve_trace = go.Scatter(
-        x=DAYS,
+        x=list(df2.columns)[4:],
         y=list(np.sum(df2.iloc[:, 4:day_idx].copy(), axis=0)),
         mode='lines+markers',
         name='Deaths',
@@ -97,7 +98,7 @@ def draw_curve(df1, df2, df3,  day):
     )
 
     df3_curve_trace = go.Bar(
-        x=DAYS,
+        x=list(df3.columns)[4:],
         y=list(np.sum(df3.iloc[:, 4:day_idx].copy(), axis=0)),
         name='Recovered',
         marker=dict(
@@ -110,12 +111,11 @@ def draw_curve(df1, df2, df3,  day):
         plot_bgcolor='#4E5D6C',
         barmode='overlay',
         xaxis=dict(
-            range=[DAYS[0], DAYS[-1]],
             color='#fff',
             zeroline=False,
             title=dict(
-                text='Date'),
-            fixedrange=True),
+                text='Date')
+        ),
         yaxis=dict(
             showgrid=False,
             zeroline=False,
@@ -168,47 +168,34 @@ def render_kpi_card(covid_state, color):
     )
     return kpi_card
 
-date_selector_row = dbc.Row(
-    children=[
-        dbc.Col(
-            children=[dbc.Button('<', color='primary', className='btn-block')],
-            width=3,
-            align='center'),
-        dbc.Col(children=[
-            dcc.DatePickerSingle(
-                id='date-picker-single',
-                date=convert_date(DAYS[-1]),
-                min_date_allowed=convert_date(DAYS[0]),
-                max_date_allowed=convert_date(DAYS[-1]),
-                display_format='DD MMM YYYY',
-                className='btn-block',
-            )
-        ],
-            width=6),
-        dbc.Col(
-            children=[
-                dbc.Button(
-                    '>',
-                    id='next-day',
-                    color='primary',
-                    className='btn-block')
-            ],
-            width=3,
-            align='center',
-        )
-    ]
-)
-
 
 dashboard_nav = dbc.NavbarSimple(
     children=[
-        date_selector_row
+        dbc.Button(
+            '<',
+            id='previous-day-button',
+            color='primary',
+            className='mr-1'
+        ),
+        dcc.DatePickerSingle(
+            id='date-picker-single',
+            date=convert_date(DAYS[-1]),
+            min_date_allowed=convert_date(DAYS[0]),
+            max_date_allowed=convert_date(DAYS[-1]),
+            display_format='DD MMM YYYY'
+        ),
+        dbc.Button(
+            '>',
+            id='next-day-button',
+            color='primary',
+            className='ml-1'
+        )
     ],
     brand='Daily COVID-19 Numbers',
     color='dark',
     dark=True,
     fluid=True,
-    sticky=True
+    sticky='top'
 )
 
 kpi_row = dbc.Row(
@@ -263,7 +250,8 @@ charts_deck = dbc.CardDeck(
                         dbc.CardBody(
                             children=[
                                 dcc.Graph(
-                                    figure=draw_curve(CONFIRMED, DEATHS, RECOVERED, '2020-03-30'))
+                                    figure=draw_curve(CONFIRMED, DEATHS, RECOVERED, list(CONFIRMED.columns)[-1]),
+                                    id='curve-scatter')
                             ],
                         )
                     ]
@@ -285,17 +273,18 @@ content = html.Div(
 )
 
 layout = html.Div(
-    children=[content, html.Div('TEST', style={'height': '1000px'})]
+    children=[content, html.Div('TEST', id='debug', style={'height': '1000px'})]
 )
 
 
 @app.callback(
-    Output('infection-map', 'figure'),
+    [Output('infection-map', 'figure'),
+     Output('curve-scatter', 'figure')],
     [Input('date-picker-single', 'date')]
 )
 def update_map(day):
     date_only = day.split('T')[0]
-    return draw_infection_map(CONFIRMED, date_only)
+    return draw_infection_map(CONFIRMED, date_only), draw_curve(CONFIRMED, DEATHS, RECOVERED, date_only)
 
 
 @app.callback(
@@ -329,3 +318,26 @@ def toggle_popover(n, is_open):
     if n:
         return not is_open
     return is_open
+
+
+@app.callback(
+    [Output('date-picker-single', 'date')],
+    [Input('previous-day-button', 'n_clicks'),
+     Input('next-day-button', 'n_clicks')],
+    [State('date-picker-single', 'date')]
+)
+def move_date(prev_day, next_day, current_date):
+    ctx = dash.callback_context
+    if ctx.triggered:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    # if prev_day is not None:
+        available_dates = list(STR_TO_DATE.values())
+        date_idx = available_dates.index(current_date)
+        if button_id == 'previous-day-button':
+            if date_idx - 1 >=0:
+                date_idx -= 1
+        elif button_id == 'next-day-button':
+            if date_idx + 1 <= len(available_dates)-1:
+                date_idx += 1
+
+    return [available_dates[date_idx]]
