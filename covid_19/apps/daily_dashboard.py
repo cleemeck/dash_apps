@@ -226,20 +226,20 @@ charts_deck = dbc.CardDeck(
                         dbc.CardHeader(
                             dbc.Row(
                                 children=[
-                                    html.H5('Confirmed Cases', className='card-title'),
-                                    dbc.Modal(
-                                        dbc.Popover(
-                                            children=[
-                                                dbc.PopoverHeader('Infection Map'),
-                                                dbc.PopoverBody('Area of the bubble is related to acumulative '
-                                                                'number of cases in the region / country. Hover over '
-                                                                'to see the actual numbers. Scroll to zoom in/out '
-                                                                'and double click to reset view.')
-                                            ],
-                                            id='map-popover'
-                                        )
+                                    html.H5('Confirmed Cases', className='card-title', style={'text-align': 'center'}),
+                                    dbc.Popover(
+                                        children=[
+                                            dbc.PopoverHeader('Infection Map'),
+                                            dbc.PopoverBody('Area of the bubble is related to acumulative '
+                                                            'number of cases in the region / country. Hover over '
+                                                            'to see the actual numbers. Scroll to zoom in/out '
+                                                            'and double click to reset view.')
+                                        ],
+                                        id='map-popover',
+                                        is_open=False,
+                                        target='map-popover-target'
                                     ),
-                                    dbc.Button('?', className='button', color='info')
+                                    dbc.Button('?', id='map-popover-target', className='button', color='info')
                                 ],
                                 align='center',
                                 justify='between',
@@ -318,3 +318,14 @@ def update_change(day):
     results = [np.sum(df.iloc[:, idx]) - np.sum(df.iloc[:, idx-1])
                for df, idx in zip(ALL_DFS, selected_idx)]
     return ['{:+,.0f}'.format(result) for result in results]
+
+
+@app.callback(
+    Output("map-popover", "is_open"),
+    [Input("map-popover-target", "n_clicks")],
+    [State("map-popover", "is_open")],
+)
+def toggle_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
