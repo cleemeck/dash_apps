@@ -33,6 +33,7 @@ STR_TO_DATE = {str_date: convert_date(str_date) for str_date in DAYS}
 [df.rename(columns=STR_TO_DATE, inplace=True) for df in [CONFIRMED, DEATHS, RECOVERED]]
 
 ALL_DFS = [CONFIRMED, DEATHS, RECOVERED]
+DAYS_FOR_DISPLAY = list(CONFIRMED.columns)
 
 
 def draw_infection_map(df, day):
@@ -98,7 +99,6 @@ def draw_curve(df1, df2, df3,  day):
     df3_curve_trace = go.Bar(
         x=DAYS,
         y=list(np.sum(df3.iloc[:, 4:day_idx].copy(), axis=0)),
-        width=0.4,
         name='Recovered',
         marker=dict(
             color='#5cb85c')
@@ -133,62 +133,126 @@ def draw_curve(df1, df2, df3,  day):
 
 
 def render_kpi_card(covid_state, color):
-    kpi_card = dbc.Col(dbc.Card(
-        children=[
-            dbc.CardHeader(html.H4(covid_state), style={'font-size': '1.1vw', 'text-align': 'center'}),
-            dbc.CardBody(
-                children=[
-                    dbc.Row(
-                        children=[
-                            dbc.Col(
-                                children=[
-                                    html.Div('Total',
-                                             style={'font-size': '1vw', 'text-align': 'center'}),
-                                    html.Div(id=f'{covid_state}-total',
-                                             style={'font-size': '2.5vw', 'text-align': 'center'})
-                                ]
-                            ),
-                            dbc.Col(
-                                children=[
-                                    html.Div('Daily Change',
-                                             style={'font-size': '1vw', 'text-align': 'center'}),
-                                    html.Div(id=f'{covid_state}-change',
-                                             style={'font-size': '2.5vw', 'text-align': 'center'})
-                                ]
-                            )
-                        ]
-                    )
-                ]
-            ),
-        ],
-        color=color
-    )
+    kpi_card = dbc.Col(
+        dbc.Card(
+            children=[
+                dbc.CardHeader(html.H4(covid_state), style={'font-size': '1.1vw', 'text-align': 'center'}),
+                dbc.CardBody(
+                    children=[
+                        dbc.Row(
+                            children=[
+                                dbc.Col(
+                                    children=[
+                                        html.Div('Total',
+                                                 style={'font-size': '1vw', 'text-align': 'center'}),
+                                        html.Div(id=f'{covid_state}-total',
+                                                 style={'font-size': '2.5vw', 'text-align': 'center'})
+                                    ]
+                                ),
+                                dbc.Col(
+                                    children=[
+                                        html.Div('Daily Change',
+                                                 style={'font-size': '1vw', 'text-align': 'center'}),
+                                        html.Div(id=f'{covid_state}-change',
+                                                 style={'font-size': '2.5vw', 'text-align': 'center'})
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                ),
+            ],
+            color=color,
+            className='mb-3 mt-3'
+        )
     )
     return kpi_card
 
+date_selector_row = dbc.Row(
+    children=[
+        dbc.Col(
+            children=[dbc.Button('<', color='primary', className='btn-block')],
+            width=3,
+            align='center'),
+        dbc.Col(children=[
+            dcc.DatePickerSingle(
+                id='date-picker-single',
+                date=convert_date(DAYS[-1]),
+                min_date_allowed=convert_date(DAYS[0]),
+                max_date_allowed=convert_date(DAYS[-1]),
+                display_format='DD MMM YYYY',
+                className='btn-block',
+            )
+        ],
+            width=6),
+        dbc.Col(
+            children=[
+                dbc.Button(
+                    '>',
+                    id='next-day',
+                    color='primary',
+                    className='btn-block')
+            ],
+            width=3,
+            align='center',
+        )
+    ]
+)
+
+
+dashboard_nav = dbc.NavbarSimple(
+    children=[
+        date_selector_row
+    ],
+    brand='Daily COVID-19 Numbers',
+    color='dark',
+    dark=True,
+    fluid=True,
+    sticky=True
+)
 
 kpi_row = dbc.Row(
     children=[
         render_kpi_card(covid_state, color)
         for covid_state, color
         in zip(COVID_STATES, COVID_COLORS)
-        ],
-    className='mb-4'
+        ]
 )
-
 
 charts_deck = dbc.CardDeck(
             children=[
                 dbc.Card(
                     children=[
                         dbc.CardHeader(
-                            html.H5('Confirmed Cases', className='card-title')
-                        ),
+                            dbc.Row(
+                                children=[
+                                    html.H5('Confirmed Cases', className='card-title'),
+                                    dbc.Modal(
+                                        dbc.Popover(
+                                            children=[
+                                                dbc.PopoverHeader('Infection Map'),
+                                                dbc.PopoverBody('Area of the bubble is related to acumulative '
+                                                                'number of cases in the region / country. Hover over '
+                                                                'to see the actual numbers. Scroll to zoom in/out '
+                                                                'and double click to reset view.')
+                                            ],
+                                            id='map-popover'
+                                        )
+                                    ),
+                                    dbc.Button('?', className='button', color='info')
+                                ],
+                                align='center',
+                                justify='between',
+                                className='pl-2 pr-2'
+                        )),
                         dbc.CardBody(
                             children=[
                                 dcc.Graph(
-                                id='infection-map',
-                                figure=draw_infection_map(CONFIRMED, convert_date(DAYS[-7]))
+                                    id='infection-map',
+                                    figure=draw_infection_map(CONFIRMED, convert_date(DAYS[-7])),
+                                    config=dict(
+                                        displayModeBar=True
+                                    )
                             )],
                         )
                     ]
@@ -207,32 +271,21 @@ charts_deck = dbc.CardDeck(
             ],
 )
 
-date_picker = dcc.DatePickerSingle(
-    id='date-picker-single',
-    date=convert_date(DAYS[-1]),
-    min_date_allowed=convert_date(DAYS[0]),
-    max_date_allowed=convert_date(DAYS[-1]),
-    display_format='DD MMM YY'
-)
-
-run_animation_button = dbc.Button(
-    id='run-animation-button',
-    n_clicks=0,
-    children=['Run Animation'],
-    color='primary'
-)
-
-content = dbc.Container(
+content = html.Div(
     children=[
-        date_picker,
-        kpi_row,
-        charts_deck,
-    ],
-    fluid=True
+        dashboard_nav,
+        dbc.Container(
+            children=[
+                kpi_row,
+                charts_deck
+            ],
+            fluid=True
+        )
+    ]
 )
 
 layout = html.Div(
-    children=[content, html.Div(id='debug')]
+    children=[content, html.Div('TEST', style={'height': '1000px'})]
 )
 
 
