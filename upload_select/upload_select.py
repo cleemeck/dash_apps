@@ -31,7 +31,7 @@ def parse_contents(contents, filename):
             'There was an error processing this file.'
         ])
 
-    return df.to_json(date_format='iso', orient='split'), filename
+    return df.to_json(date_format='iso', orient='split')
 
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
@@ -69,15 +69,45 @@ app.layout = dbc.Container(
                 dbc.Card(
                     children=[
                         dbc.CardHeader('Step 2', className='card-title'),
-                        dbc.CardBody()
+                        dbc.CardBody(
+                            children=[
+                                dbc.Table(id='data-table')
+                            ],
+                            id='data-table-container')
                     ],
                     style={'width': '100%'}
                 )
             ],
+            id='second-step-container',
             style={'display': 'none'}
-        )
+        ),
+        html.Div(id='debug')
     ]
 )
+
+
+@app.callback(
+    Output('debug', 'children'),
+    [Input('upload-data', 'contents'),
+     Input('upload-data', 'filename')]
+)
+def display_filename(contents, file_name):
+    if contents is not None:
+        return parse_contents(contents, file_name)
+    return None
+
+@app.callback(
+    [Output('second-step-container', 'style'),
+     Output('data-table-container', 'children')],
+    [Input('upload-data', 'contents'),
+     Input('upload-data', 'filename')]
+)
+def display_second_step(contents, filename):
+    if contents is not None:
+        df = pd.read_json(parse_contents(contents, filename), orient='split')
+        
+        return {'display': 'block'}, dbc.Table.from_dataframe(df, striped=True, hover=True)
+    return {'display': 'none'}, []
 
 
 if __name__ == '__main__':
